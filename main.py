@@ -73,11 +73,19 @@ def posts_users_list(users,posts_count_dict):
         data_users_posts_list.append(create_data_dict(user, count))
     logging.info("Users posts list created successfully.")
     return data_users_posts_list
-    
+
+def top_active_users(posts_users_list, top_n):
+    if not posts_users_list:
+        logging.warning("No users posts list provided to get top active users.")
+        return []
+    top_users=sorted(posts_users_list, key=lambda x: x["posts_count"] if x else 0, reverse=True)[:top_n]
+    logging.info(f"Top {top_n} active users retrieved successfully.")
+    return top_users
 def main():
     logging.basicConfig(filename="logs/app.log",level=logging.INFO,filemode='w',format='%(asctime)s - %(levelname)s - %(message)s')
     logging.info("Application started")
 
+    top_active_number=5
     URL_users="https://jsonplaceholder.typicode.com/users" #users API endpoint
     URL_posts="https://jsonplaceholder.typicode.com/posts" #posts API endpoint
 
@@ -95,9 +103,9 @@ def main():
 
     posts_count_d = posts_count_dict(posts)
     posts_users_l = posts_users_list(users, posts_count_d)
+    top_active_us=top_active_users(posts_users_l, top_active_number)
 
-    print(posts_users_l)
-    
+    print(top_active_us)
 
     logging.info("Application finished")
 
