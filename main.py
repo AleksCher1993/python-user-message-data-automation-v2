@@ -2,6 +2,7 @@ import requests as req
 import logging
 import json
 import os
+
 def fetch_data(url):
     logging.info(f"Fetching data from {url}")
     try:
@@ -38,6 +39,41 @@ def read_json_from_file(filename):
         logging.error(f"Error reading json data from {filename}: {e}")
         return None
 
+def create_data_dict(user, count):
+    if not user or not count:
+        logging.warning("No data provided to create data dictionary.")
+        return None
+    data_dict = {
+        "user_id":user["id"],
+        "name":user["name"],
+        "email":user["email"],
+        "city":user["address"]["city"],
+        "posts_count":count
+    }
+    logging.info("Data dictionary created successfully.")
+    return data_dict
+
+def posts_count_dict(posts):
+    if not posts:
+        logging.warning("No posts data provided to create posts count dictionary.")
+        return {}
+    count_dict={}
+    for post in posts:
+        count_dict[post["userId"]] = count_dict.get(post["userId"], 0) + 1
+    logging.info("Posts count dictionary created successfully.")
+    return count_dict
+
+def posts_users_list(users,posts_count_dict):
+    if not users or not posts_count_dict:
+        logging.warning("No data provided to create users posts list.")
+        return []
+    data_users_posts_list=[]
+    for user in users:
+        count = posts_count_dict.get(user["id"])
+        data_users_posts_list.append(create_data_dict(user, count))
+    logging.info("Users posts list created successfully.")
+    return data_users_posts_list
+    
 def main():
     logging.basicConfig(filename="logs/app.log",level=logging.INFO,filemode='w',format='%(asctime)s - %(levelname)s - %(message)s')
     logging.info("Application started")
@@ -56,7 +92,11 @@ def main():
         logging.info("Data files already exist. Skipping write operation.")
         users = read_json_from_file("datas/users.json")
         posts = read_json_from_file("datas/posts.json")
-    
+
+    posts_count_d = posts_count_dict(posts)
+    posts_users_l = posts_users_list(users, posts_count_d)
+
+    print(posts_users_l)
     
 
     logging.info("Application finished")
