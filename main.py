@@ -2,6 +2,7 @@ import requests as req
 import logging
 import json
 import os
+import csv
 
 def fetch_data(url):
     logging.info(f"Fetching data from {url}")
@@ -9,7 +10,6 @@ def fetch_data(url):
         with req.Session() as session:
             response = session.get(url, timeout=10)
             response.raise_for_status()
-            print(response.json())
             logging.info(f"Data fetched successfully from {url}")
             return response.json()
     except req.exceptions.RequestException as e:
@@ -40,7 +40,7 @@ def read_json_from_file(filename):
         return None
 
 def create_data_dict(user, count):
-    if not user or not count:
+    if user is None or count is None:
         logging.warning("No data provided to create data dictionary.")
         return None
     data_dict = {
@@ -70,7 +70,9 @@ def posts_users_list(users,posts_count_dict):
     data_users_posts_list=[]
     for user in users:
         count = posts_count_dict.get(user["id"])
-        data_users_posts_list.append(create_data_dict(user, count))
+        item=create_data_dict(user, count)
+        if item:    
+            data_users_posts_list.append(item)
     logging.info("Users posts list created successfully.")
     return data_users_posts_list
 
@@ -81,32 +83,58 @@ def top_active_users(posts_users_list, top_n):
     top_users=sorted(posts_users_list, key=lambda x: x["posts_count"] if x else 0, reverse=True)[:top_n]
     logging.info(f"Top {top_n} active users retrieved successfully.")
     return top_users
+
+def write_csv_to_file(filename, data):
+    logging.info(f"Writing CSV data to {filename}")
+    try:
+        if not data:
+            logging.warning(f"No data to write to {filename}")
+            return
+        with open(filename, "w", newline='', encoding="utf-8") as file:
+            writer = csv.DictWriter(file, fieldnames=data[0].keys())
+            writer.writeheader()
+            writer.writerows(data)
+        logging.info(f"CSV data written successfully to {filename}")
+    except IOError as e:    
+        logging.error(f"Error writing CSV data to {filename}: {e}")
+
+
+
 def main():
+    os.makedirs("data", exist_ok=True)
     logging.basicConfig(filename="logs/app.log",level=logging.INFO,filemode='w',format='%(asctime)s - %(levelname)s - %(message)s')
     logging.info("Application started")
+    
 
     top_active_number=5
     URL_users="https://jsonplaceholder.typicode.com/users" #users API endpoint
     URL_posts="https://jsonplaceholder.typicode.com/posts" #posts API endpoint
 
-    
-    if not os.path.exists("datas/users.json") and not os.path.exists("datas/posts.json"):
+    users_path="data/users.json"
+    posts_path="data/posts.json"
+    user_activity_path="data/user_activity.json"
+    report_user_activity_path="data/report_user_activity.csv"
+    report_posts_users_list_path="data/report_posts_users_list.csv"
+
+
+    if not os.path.exists(users_path) or not os.path.exists(posts_path):
         logging.info("Data files do not exist. Fetching and writing data.")
         users = fetch_data(URL_users)
         posts = fetch_data(URL_posts)
-        write_json_to_file("datas/users.json", users)
-        write_json_to_file("datas/posts.json", posts)
+        write_json_to_file(users_path, users)
+        write_json_to_file(posts_path, posts)
     else:
         logging.info("Data files already exist. Skipping write operation.")
-        users = read_json_from_file("datas/users.json")
-        posts = read_json_from_file("datas/posts.json")
+        users = read_json_from_file(users_path)
+        posts = read_json_from_file(posts_path)
 
     posts_count_d = posts_count_dict(posts)
-    posts_users_l = posts_users_list(users, posts_count_d)
-    top_active_us=top_active_users(posts_users_l, top_active_number)
+    posts_users_lst = posts_users_list(users, posts_count_d)
+    top_active_usr=top_active_users(posts_users_lst, top_active_number)
 
-    print(top_active_us)
-
+    write_json_to_file(user_activity_path, top_active_usr)
+    write_csv_to_file(report_user_activity_path, top_active_usr)
+    write_csv_to_file(report_posts_users_list_path, posts_users_lst)
     logging.info("Application finished")
 
 if __name__ == "__main__":
